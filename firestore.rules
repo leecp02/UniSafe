@@ -1,0 +1,278 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isCounsellorProfile(userId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(userId))
+        && get(/databases/$(database)/documents/users/$(userId)).data.role == "counsellor";
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isCounsellor() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().data.role == "counsellor";
+    }
+
+    function isValidRole(role) {
+      return role is string && (role == "student" || role == "counsellor");
+    }
+
+    function isValidStudentEmail(email) {
+      return email is string && email.matches('^[0-9]{5}@siswa\\.unimas\\.my$');
+    }
+
+    function reportDoc(reportId) {
+      return get(/databases/$(database)/documents/reports/$(reportId));
+    }
+
+    function canAccessReport(reportId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/reports/$(reportId))
+        && (isCounsellor() || reportDoc(reportId).data.reporterUid == request.auth.uid);
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isCounsellor() || isCounsellorProfile(userId);
+
+      allow create: if isOwner(userId)
+        && request.resource.data.email == request.auth.token.email
+        && isValidRole(request.resource.data.role)
+        && (
+          request.resource.data.role != "student" ||
+          isValidStudentEmail(request.resource.data.email)
+        );
+
+      allow update: if isOwner(userId)
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.email == request.auth.token.email
+        && isValidRole(request.resource.data.role)
+        && (
+          request.resource.data.role != "student" ||
+          isValidStudentEmail(request.resource.data.email)
+        );
+
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/mdq_assessments/{assessmentId} {
+      allow read: if isOwner(userId) || isCounsellor();
+
+      allow create: if isOwner(userId)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.category is string
+        && request.resource.data.assessmentType is string
+        && (
+          (
+            request.resource.data.assessmentType == "mdq"
+            && request.resource.data.answers is list
+            && request.resource.data.answers.size() == 13
+            && request.resource.data.timingClustered is bool
+            && request.resource.data.impact is string
+            && request.resource.data.rawScore is int
+            && request.resource.data.endorsementPercent is number
+            && request.resource.data.positiveScreen is bool
+            && request.resource.data.positiveActivation is map
+            && request.resource.data.negativeActivation is map
+            && request.resource.data.riskStatus is string
+          ) || (
+            request.resource.data.assessmentType == "stress"
+            && request.resource.data.answers is list
+            && request.resource.data.answers.size() == 24
+            && request.resource.data.score is int
+            && request.resource.data.riskStatus is string
+            && request.resource.data.resultMessage is string
+            && request.resource.data.suggestions is list
+          ) || (
+            request.resource.data.assessmentType == "wellbeing"
+            && request.resource.data.emotionsAnswers is list
+            && request.resource.data.behaviorAnswers is list
+            && request.resource.data.supportAnswers is list
+            && request.resource.data.strengthAnswers is list
+            && request.resource.data.lifeAnswers is list
+            && request.resource.data.finalAnswer is int
+            && request.resource.data.emotionScore is int
+            && request.resource.data.behaviorScore is int
+            && request.resource.data.supportScore is int
+            && request.resource.data.strengthScore is int
+            && request.resource.data.lifeScore is int
+            && request.resource.data.concernScore is int
+            && request.resource.data.protectiveScore is int
+            && request.resource.data.finalAdjustment is int
+            && request.resource.data.overallScore is int
+            && request.resource.data.riskStatus is string
+            && request.resource.data.resultMessage is string
+            && request.resource.data.focusAreas is list
+            && request.resource.data.suggestions is list
+          )
+        );
+
+      allow update: if false;
+      allow delete: if isOwner(userId);
+    }
+
+    match /forum_posts/{postId} {
+      allow read: if true;
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.postTitle is string
+        && request.resource.data.postTitle.size() > 0
+        && request.resource.data.postDesc is string
+        && request.resource.data.postDesc.size() > 0
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.attachments is list;
+
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.postTitle is string
+        && request.resource.data.postTitle.size() > 0
+        && request.resource.data.postDesc is string
+        && request.resource.data.postDesc.size() > 0
+        && request.resource.data.attachments is list;
+
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+    }
+
+    match /reports/{reportId} {
+      allow read: if isSignedIn()
+        && (resource.data.reporterUid == request.auth.uid || isCounsellor());
+
+      allow create: if isSignedIn()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.category is string
+        && request.resource.data.category.size() > 0
+        && request.resource.data.tag is string
+        && request.resource.data.location is string
+        && request.resource.data.location.size() > 0
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.dateTime is timestamp
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.status == "new"
+        && request.resource.data.assignedCounsellorUid == null
+        && request.resource.data.attachments is list;
+
+      allow update: if (
+          isCounsellor()
+          && request.resource.data.reporterUid == resource.data.reporterUid
+          && request.resource.data.title == resource.data.title
+          && request.resource.data.category == resource.data.category
+          && request.resource.data.tag == resource.data.tag
+          && request.resource.data.dateTime == resource.data.dateTime
+          && request.resource.data.location == resource.data.location
+          && request.resource.data.description == resource.data.description
+          && request.resource.data.attachments == resource.data.attachments
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.status is string
+        ) || (
+          resource.data.reporterUid == request.auth.uid
+          && request.resource.data.reporterUid == resource.data.reporterUid
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.assignedCounsellorUid == resource.data.assignedCounsellorUid
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.category is string
+          && request.resource.data.category.size() > 0
+          && request.resource.data.tag is string
+          && request.resource.data.location is string
+          && request.resource.data.location.size() > 0
+          && request.resource.data.description is string
+          && request.resource.data.description.size() > 0
+          && request.resource.data.dateTime is timestamp
+          && request.resource.data.attachments is list
+        );
+
+      allow delete: if isSignedIn() && resource.data.reporterUid == request.auth.uid;
+    }
+
+    match /event_posts/{eventId} {
+      allow read: if isSignedIn();
+
+      allow create: if isCounsellor()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.eventTitle is string
+        && request.resource.data.eventTitle.size() > 0
+        && request.resource.data.eventDesc is string
+        && request.resource.data.eventDesc.size() > 0
+        && request.resource.data.eventVenue is string
+        && request.resource.data.eventVenue.size() > 0
+        && request.resource.data.eventDate is timestamp
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.attachments is list;
+
+      allow update: if isCounsellor()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.eventTitle is string
+        && request.resource.data.eventTitle.size() > 0
+        && request.resource.data.eventDesc is string
+        && request.resource.data.eventDesc.size() > 0
+        && request.resource.data.eventVenue is string
+        && request.resource.data.eventVenue.size() > 0
+        && request.resource.data.eventDate is timestamp
+        && request.resource.data.attachments is list;
+
+      allow delete: if isCounsellor() && resource.data.userId == request.auth.uid;
+    }
+
+    match /hotlines/{hotlineId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isCounsellor();
+    }
+
+    match /report_chats/{messageId} {
+      allow read: if canAccessReport(resource.data.reportId);
+
+      allow create: if isSignedIn()
+        && request.resource.data.senderUid == request.auth.uid
+        && request.resource.data.receiverUid is string
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.createdAt is timestamp
+        && canAccessReport(request.resource.data.reportId);
+
+      allow update, delete: if false;
+    }
+
+    match /report_chat_threads/{threadId} {
+      allow read: if isSignedIn()
+        && (
+          resource.data.counsellorUid == request.auth.uid ||
+          resource.data.studentUid == request.auth.uid
+        );
+
+      allow create, update: if isSignedIn()
+        && request.resource.data.reportId is string
+        && request.resource.data.counsellorUid is string
+        && request.resource.data.studentUid is string
+        && request.resource.data.lastMessage is string
+        && request.resource.data.lastMessageSenderUid == request.auth.uid
+        && request.resource.data.updatedAt is timestamp
+        && (
+          request.resource.data.counsellorUid == request.auth.uid ||
+          request.resource.data.studentUid == request.auth.uid
+        )
+        && canAccessReport(request.resource.data.reportId);
+
+      allow delete: if false;
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+	"flutter": {
+		"platforms": {
+			"android": {
+				"default": {
+					"projectId": "unisafe-application",
+					"appId": "1:412499331146:android:d057a81fd328843f8b3eb3",
+					"fileOutput": "android/app/google-services.json"
+				}
+			},
+			"dart": {
+				"lib/firebase_options.dart": {
+					"projectId": "unisafe-application",
+					"configurations": {
+						"android": "1:412499331146:android:d057a81fd328843f8b3eb3",
+						"ios": "1:412499331146:ios:1ded5d2e5c6ff07f8b3eb3",
+						"macos": "1:412499331146:ios:1ded5d2e5c6ff07f8b3eb3",
+						"web": "1:412499331146:web:798f4722e8e8186e8b3eb3",
+						"windows": "1:412499331146:web:3598c99a35f6262c8b3eb3"
+					}
+				}
+			}
+		}
+	},
+	"firestore": {
+		"rules": "firestore.rules"
+	}
+}

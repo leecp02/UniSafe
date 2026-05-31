@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "412499331146",
+    "project_id": "unisafe-application",
+    "storage_bucket": "unisafe-application.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:412499331146:android:d057a81fd328843f8b3eb3",
+        "android_client_info": {
+          "package_name": "com.example.unisafe_mobile_aplication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6nqDuK-0nYf69cwNqqK657s-s5ZZz2qo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
